@@ -1,3 +1,4 @@
 module SslCertifier
-  require 'ssl_certifier/open_uri.rb'
+  require 'open-uri'
+  require 'ssl_certifier/open-uri.rb'
 end
