@@ -9,8 +9,8 @@ Gem::Specification.new do |s|
   s.authors     = ["Stafford Brunk"]
   s.email       = ["wingrunr21@gmail.com"]
   s.homepage    = "https://www.github.com/wingrunr21/ssl_certifier"
-  s.summary     = %q{Adds root certificates to the OpenSSL package to that SSL connections work properly in Ruby 1.9}
-  s.description = %q{Adds root certificates to the OpenSSL package to that SSL connections work properly in Ruby 1.9.  This gem allows for SSL connections to function properly even when Ruby does not have access to the operating system's default root certificates}
+  s.summary     = %q{Adds root certificates to the OpenURI module so that SSL connections work properly in Ruby 1.9}
+  s.description = %q{Adds root certificates to the OpenURI module so that SSL connections work properly in Ruby 1.9.  This gem allows for SSL connections to function properly even when Ruby does not have access to the operating system's default root certificates}
 
   s.rubyforge_project = "ssl_certifier"
 
