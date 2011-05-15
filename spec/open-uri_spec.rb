@@ -250,23 +250,23 @@ describe OpenURI do
         lambda { open("#{url}/to-file/") {} }.should raise(RuntimeError)
       end
     end
-  
-    def test_redirect_loop
-      with_http {|srv, dr, url|
+    
+    it 'should raise a RuntimeError if it enters a redirect loop' do
+      with_http do |srv, dr, url|
         srv.mount_proc("/r1/") {|req, res| res.status = 301; res["location"] = "#{url}/r2"; res.body = "r1" }
         srv.mount_proc("/r2/") {|req, res| res.status = 301; res["location"] = "#{url}/r1"; res.body = "r2" }
-        assert_raise(RuntimeError) { open("#{url}/r1/") {} }
-      }
+        lambda { open("#{url}/r1/") {} }.should raise(RuntimeError)
+      end
     end
   
-    def test_redirect_relative
-      TCPServer.open("127.0.0.1", 0) {|serv|
+    it 'should open a URI through a relative redirect' do
+      TCPServer.open("127.0.0.1", 0) do |serv|
         port = serv.addr[1]
         th = Thread.new {
           sock = serv.accept
           begin
             req = sock.gets("\r\n\r\n")
-            assert_match(%r{\AGET /foo/bar }, req)
+            req.should match %r{\AGET /foo/bar }
             sock.print "HTTP/1.0 302 Found\r\n"
             sock.print "Location: ../baz\r\n\r\n"
           ensure
@@ -275,7 +275,7 @@ describe OpenURI do
           sock = serv.accept
           begin
             req = sock.gets("\r\n\r\n")
-            assert_match(%r{\AGET /baz }, req)
+            req.should match %r{\AGET /baz }
             sock.print "HTTP/1.0 200 OK\r\n"
             sock.print "Content-Length: 4\r\n\r\n"
             sock.print "ab\r\n"
@@ -285,22 +285,22 @@ describe OpenURI do
         }
         begin
           content = URI("http://127.0.0.1:#{port}/foo/bar").read
-          assert_equal("ab\r\n", content)
+          content.should == "ab\r\n"
         ensure
           Thread.kill(th)
           th.join
         end
-      }
+      end
     end
   
-    def test_redirect_invalid
-      TCPServer.open("127.0.0.1", 0) {|serv|
+    it 'should raise a OpenURI::HTTPError if an invalid redirect is encountered' do
+      TCPServer.open("127.0.0.1", 0) do |serv|
         port = serv.addr[1]
         th = Thread.new {
           sock = serv.accept
           begin
             req = sock.gets("\r\n\r\n")
-            assert_match(%r{\AGET /foo/bar }, req)
+            req.should match %r{\AGET /foo/bar }
             sock.print "HTTP/1.0 302 Found\r\n"
             sock.print "Location: ::\r\n\r\n"
           ensure
@@ -308,38 +308,36 @@ describe OpenURI do
           end
         }
         begin
-          assert_raise(OpenURI::HTTPError) {
-            URI("http://127.0.0.1:#{port}/foo/bar").read
-          }
+          lambda { URI("http://127.0.0.1:#{port}/foo/bar").read }.should raise(OpenURI::HTTPError)
         ensure
           Thread.kill(th)
           th.join
         end
-      }
+      end
     end
   
-    def test_redirect_auth
-      with_http {|srv, dr, url|
+    it 'should open a url with basic authentication after being redirected' do
+      with_http do |srv, dr, url|
         srv.mount_proc("/r1/") {|req, res| res.status = 301; res["location"] = "#{url}/r2" }
-        srv.mount_proc("/r2/") {|req, res|
+        srv.mount_proc("/r2/") do |req, res|
           if req["Authorization"] != "Basic #{['user:pass'].pack('m').chomp}"
             raise WEBrick::HTTPStatus::Unauthorized
           end
           res.body = "r2"
-        }
-        exc = assert_raise(OpenURI::HTTPError) { open("#{url}/r2/") {} }
-        assert_equal("401", exc.io.status[0])
-        open("#{url}/r2/", :http_basic_authentication=>['user', 'pass']) {|f|
-          assert_equal("r2", f.read)
-        }
-        exc = assert_raise(OpenURI::HTTPError) { open("#{url}/r1/", :http_basic_authentication=>['user', 'pass']) {} }
-        assert_equal("401", exc.io.status[0])
-      }
+        end
+        exc = lambda{ open("#{url}/r2/") {} }.should raise(OpenURI::HTTPError)
+        exc.io.status[0].should == "401"
+        open("#{url}/r2/", :http_basic_authentication=>['user', 'pass']) do |f|
+          f.read.should == "r2"
+        end
+        exc = lambda { open("#{url}/r1/", :http_basic_authentication=>['user', 'pass']) {} }.should raise(OpenURI::HTTPError)
+        exc.io.status[0].should == "401"
+      end
     end
   
-    def test_userinfo
+    it 'should raise an ArgumentError if user information is incorrectly specified in the url' do
       if "1.9.0" <= RUBY_VERSION
-        assert_raise(ArgumentError) { open("http://user:pass@127.0.0.1/") {} }
+        lambda { open("http://user:pass@127.0.0.1/") {} }.should raise(ArgumentError)
       end
     end
   
@@ -383,39 +381,39 @@ describe OpenURI do
       }
     end
   
-    def test_uri_read
-      with_http {|srv, dr, url|
+    it 'should open a url and read from it' do    
+      with_http do |srv, dr, url|
         open("#{dr}/uriread", "w") {|f| f << "uriread" }
         data = URI("#{url}/uriread").read
-        assert_equal("200", data.status[0])
-        assert_equal("uriread", data)
-      }
+        data.status[0].should == "200"
+        data.should == "uriread"
+      end
     end
   
-    def test_encoding
-      with_http {|srv, dr, url|
+    it 'should work with different encodings' do
+      with_http do |srv, dr, url|
         content_u8 = "\u3042"
         content_ej = "\xa2\xa4".force_encoding("euc-jp")
         srv.mount_proc("/u8/") {|req, res| res.body = content_u8; res['content-type'] = 'text/plain; charset=utf-8' }
         srv.mount_proc("/ej/") {|req, res| res.body = content_ej; res['content-type'] = 'TEXT/PLAIN; charset=EUC-JP' }
         srv.mount_proc("/nc/") {|req, res| res.body = "aa"; res['content-type'] = 'Text/Plain' }
-        open("#{url}/u8/") {|f|
-          assert_equal(content_u8, f.read)
-          assert_equal("text/plain", f.content_type)
-          assert_equal("utf-8", f.charset)
-        }
-        open("#{url}/ej/") {|f|
+        open("#{url}/u8/") do |f|
+          f.read.should == content_u8
+          f.content_type.should == "text/plain"
+          f.charset.should == "utf-8"
+        end
+        open("#{url}/ej/") do |f|
           assert_equal(content_ej, f.read)
           assert_equal("text/plain", f.content_type)
           assert_equal("euc-jp", f.charset)
-        }
-        open("#{url}/nc/") {|f|
+        end
+        open("#{url}/nc/") do |f|
           assert_equal("aa", f.read)
           assert_equal("text/plain", f.content_type)
           assert_equal("iso-8859-1", f.charset)
           assert_equal("unknown", f.charset { "unknown" })
-        }
-      }
+        end
+      end
     end
   
     def test_quoted_attvalue
