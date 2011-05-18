@@ -7,11 +7,11 @@ describe OpenURI do
       @old_proxies = @proxies.map {|k| ENV[k] }
       @proxies.each {|k| ENV[k] = nil }
     end
-    
+
     after(:each) do
       @proxies.each_with_index {|k, i| ENV[k] = @old_proxies[i] }
     end
-    
+
     it 'should return 200' do
       with_http do |srv, dr, url|
         open("#{dr}/foo200", "w") {|f| f << "foo200" }
@@ -21,7 +21,7 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should return 200 for a big file' do
       with_http do |srv, dr, url|
         content = "foo200big"*10240
@@ -32,14 +32,15 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should return 404 for a bad url' do
       with_http do |srv, dr, url|
         lambda { open("#{url}/not-exist") {} }.should raise_error(OpenURI::HTTPError)
-        exc.io.status[0].should == "404"
+        #TODO: somehow get the status from the lambda
+        #exc.io.status[0].should == "404"
       end
     end
-    
+
     it 'should read the string "foo_ou"' do
       with_http do |srv, dr, url|
         open("#{dr}/foo_ou", "w") {|f| f << "foo_ou" }
@@ -50,15 +51,15 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should raise an ArgumentError when open is given too many args' do
       lambda { open("http://192.0.2.1/tma", "r", 0666, :extra) {} }.should raise_error(ArgumentError)
     end
-    
+
     it 'should raise an ArgumentError when open is given an invalid argument' do
       lambda { open("http://127.0.0.1/", :invalid_option=>true) {} }.should raise_error(ArgumentError)
     end
-    
+
     it 'should raise a Timeout::Error when a read times out' do
       TCPServer.open("127.0.0.1", 0) do |serv|
         port = serv.addr[1]
@@ -83,7 +84,7 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should read when opening in various modes' do
       with_http do |srv, dr, url|
         open("#{dr}/mode", "w") {|f| f << "mode" }
@@ -95,17 +96,17 @@ describe OpenURI do
           f.status[0].should == "200"
           f.read.should == "mode"
         end
-        lambda { open("#{url}/mode", "a") {} }.should raise(ArgumentError)
+        lambda { open("#{url}/mode", "a") {} }.should raise_error(ArgumentError)
         open("#{url}/mode", "r:us-ascii") do |f|
           f.read.encoding.should == Encoding::US_ASCII
         end
         open("#{url}/mode", "r:utf-8") do |f|
           f.read.encoding.should == Encoding::UTF_8
         end
-        lambda { open("#{url}/mode", "r:invalid-encoding") {} }.should raise(ArgumentError)
+        lambda { open("#{url}/mode", "r:invalid-encoding") {} }.should raise_error(ArgumentError)
       end
     end
-  
+
     it 'should open a url when a block is not specified' do
       with_http do |srv, dr, url|
         open("#{dr}/without_block", "w") {|g| g << "without_block" }
@@ -118,7 +119,7 @@ describe OpenURI do
         end
       end
     end
-  
+
     it 'should read the same headers for header1 and header2' do
       myheader1 = 'barrrr'
       myheader2 = nil
@@ -130,15 +131,15 @@ describe OpenURI do
         end
       end
     end
-  
+
     it 'should not open with multiple proxy options' do
-      lambda { open("http://127.0.0.1/", :proxy_http_basic_authentication=>true, :proxy=>true) {} }.should raise(ArgumentError)
+      lambda { open("http://127.0.0.1/", :proxy_http_basic_authentication=>true, :proxy=>true) {} }.should raise_error(ArgumentError)
     end
-    
+
     it 'should not open with a non-http proxy' do
-      lambda { open("http://127.0.0.1/", :proxy=>URI("ftp://127.0.0.1/")) {} }.should raise(RuntimeError)
+      lambda { open("http://127.0.0.1/", :proxy=>URI("ftp://127.0.0.1/")) {} }.should raise_error(RuntimeError)
     end
-  
+
     it 'should open a url via a proxy' do
       with_http do |srv, dr, url|
         log = ''
@@ -162,14 +163,14 @@ describe OpenURI do
           end
           log.should match /#{Regexp.quote url}/
           log.clear
-          
+
           open("#{url}/proxy", :proxy=>URI(proxy_url)) do |f|
             f.status[0].should == "200"
             f.read.should == "proxy"
           end
           log.should match /#{Regexp.quote url}/
           log.clear
-          
+
           open("#{url}/proxy", :proxy=>nil) do |f|
             f.status[0].should == "200"
             f.read.should == "proxy"
@@ -177,10 +178,10 @@ describe OpenURI do
           log.should == ""
           log.clear
 
-          lambda { open("#{url}/proxy", :proxy=>:invalid) {} }.should raise(ArgumentError)
+          lambda { open("#{url}/proxy", :proxy=>:invalid) {} }.should raise_error(ArgumentError)
           log.should == ""
           log.clear
-          
+
           with_env("http_proxy"=>proxy_url) {
             # should not use proxy for 127.0.0.0/8.
             open("#{url}/proxy") do |f|
@@ -195,7 +196,7 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should open a url via proxy with http basic authentication' do
       with_http do |srv, dr, url|
         log = ''
@@ -216,8 +217,9 @@ describe OpenURI do
         begin
           th = proxy.start
           open("#{dr}/proxy", "w") {|f| f << "proxy" }
-          exc = lambda { open("#{url}/proxy", :proxy=>proxy_url) {} }.should raise (OpenURI::HTTPError)
-          exc.io.status[0].should == "407"
+          lambda { open("#{url}/proxy", :proxy=>proxy_url) {} }.should raise_error(OpenURI::HTTPError)
+          #TODO: somehow extract the status from the lambda
+          #exc.io.status[0].should == "407"
           log.should match /#{Regexp.quote url}/
           log.clear
 
@@ -228,7 +230,7 @@ describe OpenURI do
           log.should match /#{Regexp.quote url}/
           log.clear
 
-          lambda { open("#{url}/proxy", :proxy_http_basic_authentication=>[true, "user", "pass"]) {} }.should raise(ArgumentError)
+          lambda { open("#{url}/proxy", :proxy_http_basic_authentication=>[true, "user", "pass"]) {} }.should raise_error(ArgumentError)
           log.should == ""
           log.clear
         ensure
@@ -236,7 +238,7 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should open urls with redirects' do
       with_http do |srv, dr, url|
         srv.mount_proc("/r1/") {|req, res| res.status = 301; res["location"] = "#{url}/r2"; res.body = "r1" }
@@ -246,19 +248,19 @@ describe OpenURI do
           f.base_uri.to_s.should == "#{url}/r2"
           f.read.should == "r2"
         end
-        lambda { open("#{url}/r1/", :redirect=>false) {} }.should raise(OpenURI::HTTPRedirect)
-        lambda { open("#{url}/to-file/") {} }.should raise(RuntimeError)
+        lambda { open("#{url}/r1/", :redirect=>false) {} }.should raise_error(OpenURI::HTTPRedirect)
+        lambda { open("#{url}/to-file/") {} }.should raise_error(RuntimeError)
       end
     end
-    
+
     it 'should raise a RuntimeError if it enters a redirect loop' do
       with_http do |srv, dr, url|
         srv.mount_proc("/r1/") {|req, res| res.status = 301; res["location"] = "#{url}/r2"; res.body = "r1" }
         srv.mount_proc("/r2/") {|req, res| res.status = 301; res["location"] = "#{url}/r1"; res.body = "r2" }
-        lambda { open("#{url}/r1/") {} }.should raise(RuntimeError)
+        lambda { open("#{url}/r1/") {} }.should raise_error(RuntimeError)
       end
     end
-  
+
     it 'should open a URI through a relative redirect' do
       TCPServer.open("127.0.0.1", 0) do |serv|
         port = serv.addr[1]
@@ -292,7 +294,7 @@ describe OpenURI do
         end
       end
     end
-  
+
     it 'should raise a OpenURI::HTTPError if an invalid redirect is encountered' do
       TCPServer.open("127.0.0.1", 0) do |serv|
         port = serv.addr[1]
@@ -308,14 +310,14 @@ describe OpenURI do
           end
         }
         begin
-          lambda { URI("http://127.0.0.1:#{port}/foo/bar").read }.should raise(OpenURI::HTTPError)
+          lambda { URI("http://127.0.0.1:#{port}/foo/bar").read }.should raise_error(OpenURI::HTTPError)
         ensure
           Thread.kill(th)
           th.join
         end
       end
     end
-  
+
     it 'should open a url with basic authentication after being redirected' do
       with_http do |srv, dr, url|
         srv.mount_proc("/r1/") {|req, res| res.status = 301; res["location"] = "#{url}/r2" }
@@ -325,24 +327,26 @@ describe OpenURI do
           end
           res.body = "r2"
         end
-        exc = lambda{ open("#{url}/r2/") {} }.should raise(OpenURI::HTTPError)
-        exc.io.status[0].should == "401"
+        lambda{ open("#{url}/r2/") {} }.should raise_error(OpenURI::HTTPError)
+        #TODO: somehow get the status from the lambda
+        #exc.io.status[0].should == "401"
         open("#{url}/r2/", :http_basic_authentication=>['user', 'pass']) do |f|
           f.read.should == "r2"
         end
-        exc = lambda { open("#{url}/r1/", :http_basic_authentication=>['user', 'pass']) {} }.should raise(OpenURI::HTTPError)
-        exc.io.status[0].should == "401"
+        lambda { open("#{url}/r1/", :http_basic_authentication=>['user', 'pass']) {} }.should raise_error(OpenURI::HTTPError)
+        #TODO: somehow get the status from the lambda
+        #exc.io.status[0].should == "401"
       end
     end
-  
+
     it 'should raise an ArgumentError if user information is incorrectly specified in the url' do
       if "1.9.0" <= RUBY_VERSION
-        lambda { open("http://user:pass@127.0.0.1/") {} }.should raise(ArgumentError)
+        lambda { open("http://user:pass@127.0.0.1/") {} }.should raise_error(ArgumentError)
       end
     end
-  
-    def test_progress
-      with_http {|srv, dr, url|
+
+    it 'should open a url and report the progress' do
+      with_http do |srv, dr, url|
         content = "a" * 100000
         srv.mount_proc("/data/") {|req, res| res.body = content }
         length = []
@@ -351,18 +355,18 @@ describe OpenURI do
              :content_length_proc => lambda {|n| length << n },
              :progress_proc => lambda {|n| progress << n }
             ) {|f|
-          assert_equal(1, length.length)
-          assert_equal(content.length, length[0])
-          assert(progress.length>1,"maybe test is wrong")
-          assert(progress.sort == progress,"monotone increasing expected but was\n#{progress.inspect}")
-          assert_equal(content.length, progress[-1])
-          assert_equal(content, f.read)
+          length.length.should == 1
+          length[0].should == content.length
+          progress.length.should be > 1
+          progress.should == progress.sort
+          progress[-1].should == content.length
+          f.read.should == content
         }
-      }
+      end
     end
-  
-    def test_progress_chunked
-      with_http {|srv, dr, url|
+
+    it 'should open a url and report the progress when the response is chunked' do
+      with_http do |srv, dr, url|
         content = "a" * 100000
         srv.mount_proc("/data/") {|req, res| res.body = content; res.chunked = true }
         length = []
@@ -371,17 +375,17 @@ describe OpenURI do
              :content_length_proc => lambda {|n| length << n },
              :progress_proc => lambda {|n| progress << n }
             ) {|f|
-          assert_equal(1, length.length)
-          assert_equal(nil, length[0])
-          assert(progress.length>1,"maybe test is worng")
-          assert(progress.sort == progress,"monotone increasing expected but was\n#{progress.inspect}")
-          assert_equal(content.length, progress[-1])
-          assert_equal(content, f.read)
+          length.length.should == 1
+          length[0].should be nil
+          progress.length.should be > 1
+          progress.should == progress.sort
+          progress[-1].should == content.length
+          f.read.should == content
         }
-      }
+      end
     end
-  
-    it 'should open a url and read from it' do    
+
+    it 'should open a url and read from it' do
       with_http do |srv, dr, url|
         open("#{dr}/uriread", "w") {|f| f << "uriread" }
         data = URI("#{url}/uriread").read
@@ -389,7 +393,7 @@ describe OpenURI do
         data.should == "uriread"
       end
     end
-  
+
     it 'should work with different encodings' do
       with_http do |srv, dr, url|
         content_u8 = "\u3042"
@@ -403,127 +407,127 @@ describe OpenURI do
           f.charset.should == "utf-8"
         end
         open("#{url}/ej/") do |f|
-          assert_equal(content_ej, f.read)
-          assert_equal("text/plain", f.content_type)
-          assert_equal("euc-jp", f.charset)
+          f.read.should == content_ej
+          f.content_type.should == "text/plain"
+          f.charset.should == "euc-jp"
         end
         open("#{url}/nc/") do |f|
-          assert_equal("aa", f.read)
-          assert_equal("text/plain", f.content_type)
-          assert_equal("iso-8859-1", f.charset)
-          assert_equal("unknown", f.charset { "unknown" })
+          f.read.should == "aa"
+          f.content_type.should == "text/plain"
+          f.charset.should == "iso-8859-1"
+          f.charset { "unknown" }.should == "unknown"
         end
       end
     end
-  
-    def test_quoted_attvalue
-      with_http {|srv, dr, url|
+
+    it 'should open a url with quoted attribute values' do
+      with_http do |srv, dr, url|
         content_u8 = "\u3042"
         srv.mount_proc("/qu8/") {|req, res| res.body = content_u8; res['content-type'] = 'text/plain; charset="utf\-8"' }
-        open("#{url}/qu8/") {|f|
-          assert_equal(content_u8, f.read)
-          assert_equal("text/plain", f.content_type)
-          assert_equal("utf-8", f.charset)
-        }
-      }
+        open("#{url}/qu8/") do |f|
+          f.read.should == content_u8
+          f.content_type.should == "text/plain"
+          f.charset.should == "utf-8"
+        end
+      end
     end
-  
-    def test_last_modified
-      with_http {|srv, dr, url|
+
+    it 'should read the last modified date from a url' do
+      with_http do |srv, dr, url|
         srv.mount_proc("/data/") {|req, res| res.body = "foo"; res['last-modified'] = 'Fri, 07 Aug 2009 06:05:04 GMT' }
-        open("#{url}/data/") {|f|
-          assert_equal("foo", f.read)
-          assert_equal(Time.utc(2009,8,7,6,5,4), f.last_modified)
-        }
-      }
+        open("#{url}/data/") do |f|
+          f.read.should == "foo"
+          f.last_modified.should == Time.utc(2009,8,7,6,5,4)
+        end
+      end
     end
-  
-    def test_content_encoding
-      with_http {|srv, dr, url|
+
+    it 'should read data with various content encoding' do
+      with_http do |srv, dr, url|
         content = "abc" * 10000
         Zlib::GzipWriter.wrap(StringIO.new(content_gz="".force_encoding("ascii-8bit"))) {|z| z.write content }
         srv.mount_proc("/data/") {|req, res| res.body = content_gz; res['content-encoding'] = 'gzip' }
         srv.mount_proc("/data2/") {|req, res| res.body = content_gz; res['content-encoding'] = 'gzip'; res.chunked = true }
         srv.mount_proc("/noce/") {|req, res| res.body = content_gz }
-        open("#{url}/data/") {|f|
-          assert_equal ['gzip'], f.content_encoding
-          assert_equal(content_gz, f.read.force_encoding("ascii-8bit"))
-        }
-        open("#{url}/data2/") {|f|
-          assert_equal ['gzip'], f.content_encoding
-          assert_equal(content_gz, f.read.force_encoding("ascii-8bit"))
-        }
-        open("#{url}/noce/") {|f|
-          assert_equal [], f.content_encoding
-          assert_equal(content_gz, f.read.force_encoding("ascii-8bit"))
-        }
-      }
+        open("#{url}/data/") do |f|
+          f.content_encoding.should == ['gzip']
+          f.read.force_encoding("ascii-8bit").should == content_gz
+        end
+        open("#{url}/data2/") do |f|
+          f.content_encoding.should == ['gzip']
+          f.read.force_encoding("ascii-8bit").should == content_gz
+        end
+        open("#{url}/noce/") do |f|
+          f.content_encoding.should == []
+          f.read.force_encoding("ascii-8bit").should == content_gz
+        end
+      end
     end
-  
+
     # 192.0.2.0/24 is TEST-NET.  [RFC3330]
-  
-    def test_find_proxy
-      assert_nil(URI("http://192.0.2.1/").find_proxy)
-      assert_nil(URI("ftp://192.0.2.1/").find_proxy)
+
+    it 'should find the proxy for a given url' do
+      URI("http://192.0.2.1/").find_proxy.should be nil
+      URI("ftp://192.0.2.1/").find_proxy.should be nil
       with_env('http_proxy'=>'http://127.0.0.1:8080') {
-        assert_equal(URI('http://127.0.0.1:8080'), URI("http://192.0.2.1/").find_proxy)
-        assert_nil(URI("ftp://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
+        URI("ftp://192.0.2.1/").find_proxy.should be nil
       }
       with_env('ftp_proxy'=>'http://127.0.0.1:8080') {
-        assert_nil(URI("http://192.0.2.1/").find_proxy)
-        assert_equal(URI('http://127.0.0.1:8080'), URI("ftp://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should be nil
+        URI("ftp://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
       }
       with_env('REQUEST_METHOD'=>'GET') {
-        assert_nil(URI("http://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should be nil
       }
       with_env('CGI_HTTP_PROXY'=>'http://127.0.0.1:8080', 'REQUEST_METHOD'=>'GET') {
-        assert_equal(URI('http://127.0.0.1:8080'), URI("http://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
       }
       with_env('http_proxy'=>'http://127.0.0.1:8080', 'no_proxy'=>'192.0.2.2') {
-        assert_equal(URI('http://127.0.0.1:8080'), URI("http://192.0.2.1/").find_proxy)
-        assert_nil(URI("http://192.0.2.2/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
+        URI("http://192.0.2.2/").find_proxy.should be nil
       }
     end
-  
-    def test_find_proxy_case_sensitive_env
+
+    it 'should find a proxy for a given url with a case sensitive env' do
       with_env('http_proxy'=>'http://127.0.0.1:8080', 'REQUEST_METHOD'=>'GET') {
-        assert_equal(URI('http://127.0.0.1:8080'), URI("http://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
       }
       with_env('HTTP_PROXY'=>'http://127.0.0.1:8081', 'REQUEST_METHOD'=>'GET') {
-        assert_nil(nil, URI("http://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should be nil
       }
       with_env('http_proxy'=>'http://127.0.0.1:8080', 'HTTP_PROXY'=>'http://127.0.0.1:8081', 'REQUEST_METHOD'=>'GET') {
-        assert_equal(URI('http://127.0.0.1:8080'), URI("http://192.0.2.1/").find_proxy)
+        URI("http://192.0.2.1/").find_proxy.should == URI('http://127.0.0.1:8080')
       }
     end unless RUBY_PLATFORM =~ /mswin|mingw/
-  
-    def test_ftp_invalid_request
-      assert_raise(ArgumentError) { URI("ftp://127.0.0.1/").read }
-      assert_raise(ArgumentError) { URI("ftp://127.0.0.1/a%0Db").read }
-      assert_raise(ArgumentError) { URI("ftp://127.0.0.1/a%0Ab").read }
-      assert_raise(ArgumentError) { URI("ftp://127.0.0.1/a%0Db/f").read }
-      assert_raise(ArgumentError) { URI("ftp://127.0.0.1/a%0Ab/f").read }
-      assert_raise(URI::InvalidComponentError) { URI("ftp://127.0.0.1/d/f;type=x") }
+
+    it 'should raise exceptions on invalid ftp requests' do
+      lambda { URI("ftp://127.0.0.1/").read }.should raise_error(ArgumentError)
+      lambda { URI("ftp://127.0.0.1/a%0Db").read }.should raise_error(ArgumentError)
+      lambda { URI("ftp://127.0.0.1/a%0Ab").read }.should raise_error(ArgumentError)
+      lambda { URI("ftp://127.0.0.1/a%0Db/f").read }.should raise_error(ArgumentError)
+      lambda { URI("ftp://127.0.0.1/a%0Ab/f").read }.should raise_error(ArgumentError)
+      lambda { URI("ftp://127.0.0.1/d/f;type=x") }.should raise_error(URI::InvalidComponentError)
     end
-  
-    def test_ftp
+
+    it 'should perform FTP operations' do
       TCPServer.open("127.0.0.1", 0) {|serv|
         _, port, _, host = serv.addr
         th = Thread.new {
           s = serv.accept
           begin
             s.print "220 Test FTP Server\r\n"
-            assert_equal("USER anonymous\r\n", s.gets); s.print "331 name ok\r\n"
-            assert_match(/\APASS .*\r\n\z/, s.gets); s.print "230 logged in\r\n"
-            assert_equal("TYPE I\r\n", s.gets); s.print "200 type set to I\r\n"
-            assert_equal("CWD foo\r\n", s.gets); s.print "250 CWD successful\r\n"
-            assert_equal("PASV\r\n", s.gets)
+            s.gets.should == "USER anonymous\r\n"; s.print "331 name ok\r\n"
+            s.gets.should match /\APASS .*\r\n\z/; s.print "230 logged in\r\n"
+            s.gets.should == "TYPE I\r\n"; s.print "200 type set to I\r\n"
+            s.gets.should == "CWD foo\r\n"; s.print "250 CWD successful\r\n"
+            s.gets.should == "PASV\r\n"
             TCPServer.open("127.0.0.1", 0) {|data_serv|
               _, data_serv_port, _, data_serv_host = data_serv.addr
               hi = data_serv_port >> 8
               lo = data_serv_port & 0xff
               s.print "227 Entering Passive Mode (127,0,0,1,#{hi},#{lo}).\r\n"
-              assert_equal("RETR bar\r\n", s.gets); s.print "150 file okay\r\n"
+              s.gets.should == "RETR bar\r\n"; s.print "150 file okay\r\n"
               data_sock = data_serv.accept
               begin
                 data_sock << "content"
@@ -531,7 +535,7 @@ describe OpenURI do
                 data_sock.close
               end
               s.print "226 transfer complete\r\n"
-              assert_nil(s.gets)
+              s.gets.should be nil
             }
           ensure
             s.close if s
@@ -539,74 +543,74 @@ describe OpenURI do
         }
         begin
           content = URI("ftp://#{host}:#{port}/foo/bar").read
-          assert_equal("content", content)
+          content.should == "content"
         ensure
           Thread.kill(th)
           th.join
         end
       }
     end
-  
-    def test_ftp_active
-      TCPServer.open("127.0.0.1", 0) {|serv|
+
+    it 'should perform active FTP operations' do
+      TCPServer.open("127.0.0.1", 0) do |serv|
         _, port, _, host = serv.addr
         th = Thread.new {
           s = serv.accept
           begin
             content = "content"
             s.print "220 Test FTP Server\r\n"
-            assert_equal("USER anonymous\r\n", s.gets); s.print "331 name ok\r\n"
-            assert_match(/\APASS .*\r\n\z/, s.gets); s.print "230 logged in\r\n"
-            assert_equal("TYPE I\r\n", s.gets); s.print "200 type set to I\r\n"
-            assert_equal("CWD foo\r\n", s.gets); s.print "250 CWD successful\r\n"
-            assert(m = /\APORT 127,0,0,1,(\d+),(\d+)\r\n\z/.match(s.gets))
+            s.gets.should == "USER anonymous\r\n"; s.print "331 name ok\r\n"
+            s.gets.should match /\APASS .*\r\n\z/; s.print "230 logged in\r\n"
+            s.gets.should == "TYPE I\r\n"; s.print "200 type set to I\r\n"
+            s.gets.should == "CWD foo\r\n"; s.print "250 CWD successful\r\n"
+            m = s.gets.should match /\APORT 127,0,0,1,(\d+),(\d+)\r\n\z/
             active_port = m[1].to_i << 8 | m[2].to_i
-            TCPSocket.open("127.0.0.1", active_port) {|data_sock|
+            TCPSocket.open("127.0.0.1", active_port) do |data_sock|
               s.print "200 data connection opened\r\n"
-              assert_equal("RETR bar\r\n", s.gets); s.print "150 file okay\r\n"
+              s.gets.should == "RETR bar\r\n"; s.print "150 file okay\r\n"
               begin
                 data_sock << content
               ensure
                 data_sock.close
               end
               s.print "226 transfer complete\r\n"
-              assert_nil(s.gets)
-            }
+              s.gets.should be nil
+            end
           ensure
             s.close if s
           end
         }
         begin
           content = URI("ftp://#{host}:#{port}/foo/bar").read(:ftp_active_mode=>true)
-          assert_equal("content", content)
+          content.should == "content"
         ensure
           Thread.kill(th)
           th.join
         end
-      }
+      end
     end
-  
-    def test_ftp_ascii
-      TCPServer.open("127.0.0.1", 0) {|serv|
+
+    it 'should perform FTP operations in ascii' do
+      TCPServer.open("127.0.0.1", 0) do |serv|
         _, port, _, host = serv.addr
         th = Thread.new {
           s = serv.accept
           begin
             content = "content"
             s.print "220 Test FTP Server\r\n"
-            assert_equal("USER anonymous\r\n", s.gets); s.print "331 name ok\r\n"
-            assert_match(/\APASS .*\r\n\z/, s.gets); s.print "230 logged in\r\n"
-            assert_equal("TYPE I\r\n", s.gets); s.print "200 type set to I\r\n"
-            assert_equal("CWD /foo\r\n", s.gets); s.print "250 CWD successful\r\n"
-            assert_equal("TYPE A\r\n", s.gets); s.print "200 type set to A\r\n"
-            assert_equal("SIZE bar\r\n", s.gets); s.print "213 #{content.bytesize}\r\n"
-            assert_equal("PASV\r\n", s.gets)
+            s.gets.should == "USER anonymous\r\n"; s.print "331 name ok\r\n"
+            s.gets.should match /\APASS .*\r\n\z/; s.print "230 logged in\r\n"
+            s.gets.should == "TYPE I\r\n"; s.print "200 type set to I\r\n"
+            s.gets.should == "CWD /foo\r\n"; s.print "250 CWD successful\r\n"
+            s.gets.should == "TYPE A\r\n"; s.print "200 type set to A\r\n"
+            s.gets.should == "SIZE bar\r\n"; s.print "213 #{content.bytesize}\r\n"
+            s.gets.should == "PASV\r\n"
             TCPServer.open("127.0.0.1", 0) {|data_serv|
               _, data_serv_port, _, data_serv_host = data_serv.addr
               hi = data_serv_port >> 8
               lo = data_serv_port & 0xff
               s.print "227 Entering Passive Mode (127,0,0,1,#{hi},#{lo}).\r\n"
-              assert_equal("RETR bar\r\n", s.gets); s.print "150 file okay\r\n"
+              s.gets.should == "RETR bar\r\n"; s.print "150 file okay\r\n"
               data_sock = data_serv.accept
               begin
                 data_sock << content
@@ -614,7 +618,7 @@ describe OpenURI do
                 data_sock.close
               end
               s.print "226 transfer complete\r\n"
-              assert_nil(s.gets)
+              s.gets.should be nil
             }
           ensure
             s.close if s
@@ -626,16 +630,16 @@ describe OpenURI do
           content = URI("ftp://#{host}:#{port}/%2Ffoo/b%61r;type=a").read(
            :content_length_proc => lambda {|n| length << n },
            :progress_proc => lambda {|n| progress << n })
-          assert_equal("content", content)
-          assert_equal([7], length)
-          assert_equal(7, progress.inject(&:+))
+          content.should == "content"
+          length.should == [7]
+          progress.inject(&:+).should == 7
         ensure
           Thread.kill(th)
           th.join
         end
-      }
+      end
     end
-  
+
     it 'should allow ftp via an http proxy' do
       TCPServer.open("127.0.0.1", 0) do |proxy_serv|
         proxy_port = proxy_serv.addr[1]
@@ -662,7 +666,7 @@ describe OpenURI do
         end
       end
     end
-    
+
     it 'should allow ftp via an http proxy with basic authorization' do
       TCPServer.open("127.0.0.1", 0) do |proxy_serv|
         proxy_port = proxy_serv.addr[1]
