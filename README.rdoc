@@ -16,4 +16,4 @@ In Ruby scripts, simply require the Gem along with your other dependencies:
   require 'ssl_certifier'
 
 == Issues
-  Report them to Github
+Report via Github
