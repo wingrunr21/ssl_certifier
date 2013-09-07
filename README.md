@@ -18,3 +18,7 @@ In Ruby scripts, simply require the Gem along with your other dependencies:
 
 ## Issues
 Report via Github
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/wingrunr21/ssl_certifier/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
